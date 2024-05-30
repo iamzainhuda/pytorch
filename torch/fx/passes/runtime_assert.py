@@ -39,6 +39,7 @@ def insert_deferred_runtime_asserts(
     shape_env: ShapeEnv,
     name: str,
     export: bool = False,
+    insert_unassociated: bool = True,
 ) -> None:
     """
     During tracing, we may have discovered that some data-dependent values
@@ -209,7 +210,7 @@ def insert_deferred_runtime_asserts(
             # doesn't really have to be in the loop as it will only run once,
             # it just needs to happen right after the placeholders.
             # insert this after placeholders & added sym nodes, and before non-placeholders.
-            if node not in placeholders:
+            if insert_unassociated and node not in placeholders:
                 last_sym_node = last_placeholder
                 for _ in range(inserted_sym_nodes):
                     last_sym_node = last_sym_node.next

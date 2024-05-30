@@ -551,9 +551,14 @@ def _export_to_aten_ir(
     *,
     transform=lambda x: x,  # TODO(zhxchen17) Revisit if this is needed later.
     pre_dispatch=False,
+    # should_insert_unassociated_runtime_assertions flag will omit non-data-dependent runtime assertions if False,
+    # used for runtime asserts on complex guards
+    should_insert_unassociated_runtime_assertions=True,
     _is_torch_jit_trace=False,
 ):
-    # set this to False if env variable is specified
+    # set this to False if env variable is specified.
+    # doesn't add runtime asserts to graph
+    should_insert_runtime_assertion = True
     if os.environ.get("TORCH_DYNAMO_DO_NOT_EMIT_RUNTIME_ASSERTS", "0") == "1":
         should_insert_runtime_assertion = False
 
@@ -680,15 +685,17 @@ def _export_to_aten_ir(
         'File "torch/fx/passes/runtime_assert.py", line 24, '
         "in insert_deferred_runtime_asserts"
     )
-    with _set_node_metadata_hook(
-        gm, functools.partial(_node_metadata_hook, stack_trace=stack_trace)
-    ):
-        insert_deferred_runtime_asserts(
-            gm,
-            fake_mode.shape_env,
-            f"exported program: {first_call_function_nn_module_stack(gm.graph)}",
-            export=True,
-        )
+    if should_insert_runtime_assertion:
+        with _set_node_metadata_hook(
+            gm, functools.partial(_node_metadata_hook, stack_trace=stack_trace)
+        ):
+            insert_deferred_runtime_asserts(
+                gm,
+                fake_mode.shape_env,
+                f"exported program: {first_call_function_nn_module_stack(gm.graph)}",
+                export=True,
+                insert_unassociated=should_insert_unassociated_runtime_assertions,
+            )
 
     if pre_dispatch:
         from torch._export.passes.replace_set_grad_with_hop_pass import (
@@ -1162,6 +1169,7 @@ def _strict_export(
             fake_params_buffers,
             constant_attrs,
             pre_dispatch=pre_dispatch,
+            should_insert_unassociated_runtime_assertions=False,
         )
 
     # Decompose for readability.
@@ -1323,6 +1331,7 @@ def _non_strict_export(
                 pre_dispatch=pre_dispatch,
                 transform=_tuplify_outputs,
                 _is_torch_jit_trace=_is_torch_jit_trace,
+                should_insert_unassociated_runtime_assertions=True,
             )
             # aten_export_artifact.constants contains only fake script objects, we need to map them back
             aten_export_artifact.constants = {
