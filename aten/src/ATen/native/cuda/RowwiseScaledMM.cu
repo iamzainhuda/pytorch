@@ -41,8 +41,6 @@ static CUresult CUDAAPI nvrtc_cuTensorMapEncodeTiled(
       oobFill);
 }
 
-// Rename the global function symbol
-#define cuTensorMapEncodeTiled nvrtc_cuTensorMapEncodeTiled
 
 #include <cutlass/core_io.h>
 #include <cutlass/cutlass.h>
@@ -52,7 +50,12 @@ static CUresult CUDAAPI nvrtc_cuTensorMapEncodeTiled(
 #include <cutlass/trace.h>
 #include <cutlass/util/host_tensor.h>
 
+// Rename the global function symbol
+#define cuTensorMapEncodeTiled nvrtc_cuTensorMapEncodeTiled
 #include <cute/tensor.hpp>
+#undef cuTensorMapEncodeTiled
+// Set everything back to normal
+
 #include <cutlass/gemm/collective/collective_builder.hpp>
 #include <cutlass/gemm/device/gemm_universal_adapter.h>
 #include <cutlass/epilogue/collective/collective_builder.hpp>
@@ -62,8 +65,6 @@ static CUresult CUDAAPI nvrtc_cuTensorMapEncodeTiled(
 #include <cutlass/gemm/kernel/gemm_universal.hpp>
 #include <cutlass/util/packed_stride.hpp>
 
-// Set everything back to normal
-#undef cuTensorMapEncodeTiled
 
 namespace {
 // Cutlass rowwise kernel
@@ -127,9 +128,6 @@ void f8f8bf16_rowwise_impl(
       cute::Int<TBS_K>>; // Shape of the
                          // threadblocks in a
                          // cluster
-  using StageCountType =
-      cutlass::gemm::collective::StageCountAuto; // Stage count maximized
-                                                 // based on the tile size
   using KernelSchedule = cutlass::gemm::collective::
       KernelScheduleAuto; // Kernel to launch based on the default setting in
                           // the Collective Builder
